@@ -1,4 +1,5 @@
 #include "grapher.h"
+#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
@@ -18,6 +19,10 @@ Grapher::Grapher(SDL_Renderer *r, const std::string &pathToSettingsFile):
     {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error", ex.what(), NULL);
     }
+    if(TTF_Init() < 0)
+    {
+        std::cout << "Error: " << TTF_GetError() << std::endl;
+    }
     m_font = TTF_OpenFont(m_pathToFontFile.c_str(), m_fontSize);
     m_colorText = {0, 0, 0, 255};
     fillTextData();
@@ -30,6 +35,7 @@ Grapher::~Grapher()
     for(auto &d: m_textData)
         SDL_DestroyTexture(d.first);
     m_textData.clear();
+    TTF_Quit();
 }
 
 void Grapher::loadSettings(const std::string &pathToFile)

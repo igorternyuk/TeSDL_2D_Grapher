@@ -1,9 +1,9 @@
 #include <iostream>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
+
+#include "grapher.h"
+
 #include <vector>
 #include <string>
-#include "grapher.h"
 
 #define WINDOW_TITLE "2DGrapher"
 
@@ -23,11 +23,11 @@ int main(void)
         SDL_Quit();
         return -1;
     }
-    if(TTF_Init() < 0)
+
+    /*if(TTF_Init() < 0)
     {
         std::cout << "Error: " << TTF_GetError() << std::endl;
-    }
-
+    }*/
 
     SDL_Window *w = SDL_CreateWindow(WINDOW_TITLE, WINDOW_X, WINDOW_Y, WINDOW_WIDTH, WINDOW_HEIGHT,
                                      SDL_WINDOW_SHOWN);
@@ -35,7 +35,8 @@ int main(void)
 
     bool done = false;
 
-    Grapher g(r, "settings.dat");
+    const std::string path("settings.dat");
+    Grapher g(r, path);
     const unsigned char *keys = SDL_GetKeyboardState(NULL);
     int x, y, oldX, oldY;
     bool isMoving = false;
@@ -50,7 +51,7 @@ int main(void)
                  case SDL_QUIT:
                     done = true;
                     break;
-                case SDL_MOUSEBUTTONDOWN:
+                 case SDL_MOUSEBUTTONDOWN:
                     isMoving = true;
                     oldX = e.button.x;
                     oldY = e.button.y;
@@ -59,8 +60,6 @@ int main(void)
                     isMoving = false;
                     break;
                 case SDL_MOUSEMOTION:
-                    //g.move(e.motion.xrel, e.motion.yrel);
-                    //std::cout << "isMoving:" << isMoving << std::endl;
                     if(isMoving)
                     {
                         x = e.button.x;
@@ -79,32 +78,26 @@ int main(void)
                 case SDL_KEYDOWN:
                     if(keys[SDL_SCANCODE_KP_MINUS])
                     {
-                        //std::cout << "Minus" << std::endl;
                         g.zoomOut();
                     }
                     else if(keys[SDL_SCANCODE_KP_PLUS])
                     {
-                        //std::cout << "Plus" << std::endl;
                         g.zoomIn();
                     }
                     else if(keys[SDL_SCANCODE_LEFT])
                     {
-                        //std::cout << "Left" << std::endl;
                         g.move(Grapher::Direction::LEFT, 0.25);
                     }
                     else if(keys[SDL_SCANCODE_RIGHT])
                     {
-                        //std::cout << "Right" << std::endl;
                         g.move(Grapher::Direction::RIGHT, 0.25);
                     }
                     else if(keys[SDL_SCANCODE_UP])
                     {
-                        //std::cout << "Up" << std::endl;
                         g.move(Grapher::Direction::UP, 0.25);
                     }
                     else if(keys[SDL_SCANCODE_DOWN])
                     {
-                        //std::cout << "Down" << std::endl;
                         g.move(Grapher::Direction::DOWN, 0.25);
                     }
 
@@ -116,8 +109,10 @@ int main(void)
         g.draw_all();
         SDL_RenderPresent(r);
     }
+
     SDL_DestroyRenderer(r);
     SDL_DestroyWindow(w);
     SDL_Quit();
+
     return 0;
 }
