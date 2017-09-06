@@ -7,22 +7,28 @@
 #include <stdexcept>
 #include <string.h>
 
-Grapher::Grapher(SDL_Renderer *r, const std::string &pathToSettingsFile):
-    m_renderer(r), m_pathToSettingsFile(pathToSettingsFile)
+SDLInitObject::SDLInitObject()
 {
-    loadSettings(pathToSettingsFile);
-    try
-    {
-        loadData(m_pathToEquationFile);
-    }
-    catch(std::exception &ex)
-    {
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error", ex.what(), NULL);
-    }
+    if(SDL_Init((SDL_INIT_VIDEO)) < 0)
+        throw std::runtime_error(vErrors_[ERROR_SDL_INIT] + std::string(SDL_GetError()));
     if(TTF_Init() < 0)
-    {
-        std::cout << "Error: " << TTF_GetError() << std::endl;
-    }
+        throw std::runtime_error(vErrors_[ERROR_TTF_LOADING] + std::string(TTF_GetError()));
+}
+
+SDLInitObject::~SDLInitObject()
+{
+    TTF_Quit();
+    SDL_Quit();
+}
+
+Grapher::Grapher(const std::string &pathToSettingsFile):
+    m_window {SDL_CreateWindow(WINDOW_TITLE.c_str(), WINDOW_X, WINDOW_Y, WINDOW_WIDTH,
+                               WINDOW_HEIGHT, SDL_WINDOW_SHOWN)},
+    m_renderer{SDL_CreateRenderer(m_window, -1, SDL_RENDERER_ACCELERATED)},
+    m_pathToSettingsFile(pathToSettingsFile)
+{
+    loadSettings(m_pathToSettingsFile);
+    loadData(m_pathToEquationFile);
     m_font = TTF_OpenFont(m_pathToFontFile.c_str(), m_fontSize);
     m_colorText = {0, 0, 0, 255};
     fillTextData();
@@ -31,11 +37,101 @@ Grapher::Grapher(SDL_Renderer *r, const std::string &pathToSettingsFile):
 
 Grapher::~Grapher()
 {
-    TTF_CloseFont(m_font);
     for(auto &d: m_textData)
         SDL_DestroyTexture(d.first);
     m_textData.clear();
+    TTF_CloseFont(m_font);
     TTF_Quit();
+    SDL_DestroyRenderer(m_renderer);
+    SDL_DestroyWindow(m_window);
+    SDL_Quit();
+}
+
+void Grapher::run()
+{
+    bool done {false};
+    const unsigned char *keys = SDL_GetKeyboardState(NULL);
+    int x, y, oldX, oldY;
+    bool isMoving{false};
+    while(!done)
+    {
+        SDL_Event e;
+
+        while(SDL_PollEvent(&e))
+        {
+            switch(e.type)
+            {
+                 case SDL_QUIT:
+                    done = true;
+                    break;
+                 case SDL_MOUSEBUTTONDOWN:
+                    isMoving = true;
+                    oldX = e.button.x;
+                    oldY = e.button.y;
+                    break;
+                case SDL_MOUSEBUTTONUP:
+                    isMoving = false;
+                    break;
+                case SDL_MOUSEMOTION:
+                    if(isMoving)
+                    {
+                        x = e.button.x;
+                        y = e.button.y;
+                        move(x - oldX, y - oldY);
+                        oldX = e.button.x;
+                        oldY = e.button.y;
+                    }
+                    break;
+                case SDL_MOUSEWHEEL:
+                     if(e.wheel.y < 0)
+                         zoomOut();
+                     else if(e.wheel.y > 0)
+                         zoomIn();
+                    break;
+                case SDL_KEYDOWN:
+                    if(keys[SDL_SCANCODE_KP_MINUS])
+                    {
+                        zoomOut();
+                    }
+                    else if(keys[SDL_SCANCODE_KP_PLUS])
+                    {
+                        zoomIn();
+                    }
+                    else if(keys[SDL_SCANCODE_LEFT])
+                    {
+                        move(Grapher::Direction::LEFT, 0.25);
+                    }
+                    else if(keys[SDL_SCANCODE_RIGHT])
+                    {
+                        move(Grapher::Direction::RIGHT, 0.25);
+                    }
+                    else if(keys[SDL_SCANCODE_UP])
+                    {
+                        move(Grapher::Direction::UP, 0.25);
+                    }
+                    else if(keys[SDL_SCANCODE_DOWN])
+                    {
+                        move(Grapher::Direction::DOWN, 0.25);
+                    }
+
+                    break;
+            }
+        }
+        SDL_SetRenderDrawColor(m_renderer, 255, 255, 255, 255);
+        SDL_RenderClear(m_renderer);
+        draw_all();
+        SDL_RenderPresent(m_renderer);
+    }
+}
+
+void Grapher::userInputPhase()
+{
+
+}
+
+void Grapher::drawingPhase()
+{
+
 }
 
 void Grapher::loadSettings(const std::string &pathToFile)
@@ -437,11 +533,12 @@ void Grapher::fillTextData()
     m_labels.push_back(std::make_tuple(doubleToString(m_Xmax, 1), m_windowWidth - 100, m_windowHeight / 2 - 40));
     m_labels.push_back(std::make_tuple(doubleToString(m_Ymin, 1), m_windowWidth / 2 + 20, m_windowHeight - 40));
     m_labels.push_back(std::make_tuple(doubleToString(m_Ymax, 1), m_windowWidth / 2 + 20, 20));
-    //std::vector<std::tuple<SDL_Surface*, SDL_Texture*, SDL_Rect,
-    //std::string>> m_textData;
-    for(int i = 0; i < m_labels.size(); ++i)
+
+    for(unsigned short int i {0}; i < m_labels.size(); ++i)
     {
-        SDL_Surface *textSurface = TTF_RenderText_Solid(m_font, std::get<TEXT>(m_labels.at(i)).c_str(), m_colorText);
+        SDL_Surface *textSurface = TTF_RenderText_Solid(m_font,
+                                   std::get<TEXT>(m_labels.at(i)).c_str(),
+                                                  m_colorText);
         SDL_Texture *texture = SDL_CreateTextureFromSurface(m_renderer, textSurface);
         SDL_FreeSurface(textSurface);
         SDL_Rect textRect;
